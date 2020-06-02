@@ -24,23 +24,24 @@ fb = fw * fh * 2
 
 
 def read_frame():
-    b = ""
+    #p.write(b"f\n");
+    b = b""
     f = None
     started = False
     # read 1 frame
     while f is None:
         if p.inWaiting():
             b += p.read(p.inWaiting())
-            if '====' in b:
+            if b'====' in b:
                 if not started:
-                    b = b[b.index('====') + 4:]
+                    b = b[b.index(b'====') + 4:]
                     started = True
                 else:
-                    f = b[:b.index('====')]
+                    f = b[:b.index(b'====')]
                     if len(f) == fb:
                         break
                     f = None
-                    b = b[b.index('====') + 4:]
+                    b = b[b.index(b'====') + 4:]
     print("Read frame with %s bytes" % len(f))
     print("Expected %s" % fb)
     return f
