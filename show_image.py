@@ -18,8 +18,12 @@ else:
 
 
 p = serial.Serial(port, 9600)
-fw = 128
-fh = 96
+#fw = 128
+#fh = 96
+#fw = 320
+#fh = 240
+fw = 640
+fh = 480
 fb = fw * fh * 2
 
 

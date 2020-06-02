@@ -51,15 +51,25 @@ int n_pins = sizeof(pins) / sizeof(int);
 
 #include <Wire.h>
 
-#define FRAME_WIDTH 128
-#define FRAME_HEIGHT 96
+#define FRAME_WIDTH 640
+#define FRAME_HEIGHT 480
+#define FB_WIDTH 640
+#define FB_HEIGHT 512
+/*
+#define FRAME_WIDTH 320
+#define FRAME_HEIGHT 240
+#define FB_WIDTH 320
+#define FB_HEIGHT 256
+*/
 //#define FRAME_BYTES 12288 // 128 * 96 * 1
 //#define FRAME_BYTES 24576 // 128 * 96 * 2
 uint32_t frame_bytes = FRAME_WIDTH * FRAME_HEIGHT * 2;
 
 #define FB_COUNT 2
 //static uint16_t fb[FB_COUNT][FRAME_HEIGHT][FRAME_WIDTH] DMAMEM __attribute__ ((aligned (64)));
-static uint16_t fb[FB_COUNT][FRAME_HEIGHT][FRAME_WIDTH] __attribute__ ((aligned (64)));
+//static uint16_t fb[FB_COUNT][FB_HEIGHT][FB_WIDTH] __attribute__ ((aligned (64)));
+//static uint16_t fb[FB_COUNT][FB_HEIGHT][FB_WIDTH] __attribute__ ((aligned (64)));
+static uint32_t *fb = (uint32_t *)(0x70000000U);
 
 #ifdef CHUNK_OUTPUT
 #define CHUNK_SIZE 64
@@ -152,7 +162,8 @@ void init_sensor() {
   //   5-2: reserved
   //   1: DCLKP: 0 (normal) 1 (reversed)
   //   0: ACFDET: 0 (auto) 1 (manual)
-  write_register(0x02, 0x00);  // 15 fps?
+  //write_register(0x02, 0x00);  // 50 Hz 15 fps
+  write_register(0x02, 0xC0);  // 60 Hz 30 fps
 
   // 0x03: (default: 0x80)
   //   7: DOUTSW: 0 (on) 1 (off)
@@ -170,7 +181,9 @@ void init_sensor() {
   //     9: subQCIF(z)
   //   1: PICFMT: 0 (YUV422) 1 (RGB565)
   //   0: CM: 0 (COLOR) 1 (BW)
-  write_register(0x03, 0x22);  // RGB, sQCIFf
+  //write_register(0x03, 0x22);  // RGB, sQCIFf
+  write_register(0x03, 0x02);  // RGB, VGA
+  //write_register(0x03, 0x06);  // RGB, QVGA
   // in sQCIFf: [low power] dclk 1/2
   // sQCIF = 128 x 96
   // default HSYNCSEL is 1: blanking
@@ -246,7 +259,8 @@ void setup() {
   init_sensor_clk();
 
   // clear framebuffers
-  memset(fb, 0, sizeof(fb));
+  //memset(fb, 0, sizeof(fb));
+  memset(fb, 0, FB_COUNT * FB_WIDTH * FB_HEIGHT);
   // setup CSI
   // define configuration
   // clear framebuffer(s)
@@ -288,8 +302,8 @@ void setup() {
   //CSI_CSICR18 = (CSI_CSICR18 & ~CSI_CSICR18_MASK_OPTION_MASK) | CSI_CSICR18_MASK_OPTION(2)
 
   // CSI_CSICR2 skip count?
-  CSI_CSIDMASA_FB1 = (uint32_t)(fb[0]);
-  CSI_CSIDMASA_FB2 = (uint32_t)(fb[1]);
+  CSI_CSIDMASA_FB1 = (uint32_t)(fb);
+  CSI_CSIDMASA_FB2 = (uint32_t)(fb + (FB_HEIGHT * FB_WIDTH));
 
   Serial.print("Reflash fifo dma...");
   CSI_CSICR3 |= (1 << 14);  // CSI_CSICR3_DMA_REFLASH_RFF_MASK;
@@ -378,7 +392,7 @@ void print_all_registers() {
 
 void print_frame(int i) {
   Serial.write("====");
-  Serial.write((uint8_t*)(fb[i]), frame_bytes);
+  Serial.write((uint8_t*)(fb + (i * FB_WIDTH * FB_HEIGHT)), frame_bytes);
   /*
   for (int fbi=0; fbi<FB_COUNT; fbi++) {
     Serial.print("=="); Serial.print(fbi); Serial.println("==");
@@ -407,6 +421,7 @@ void print_frame(int i) {
   */
 }
 
+/*
 void fbs(int i, uint16_t T) {
   for (int r=25; r<50; r++) {
     for (int c=25; c<50; c++) {
@@ -415,6 +430,7 @@ void fbs(int i, uint16_t T) {
     Serial.println();
   };
 };
+*/
 
 
 uint32_t last_fc = 0;
@@ -435,13 +451,13 @@ void loop() {
   Serial.print("FB1: "); Serial.println(fb[1][50][50], HEX);
   delay(10);
   */
-  if (false & (fc_timer >= 1000)) {
+  if (true & (fc_timer >= 1000)) {
     uint32_t fc = CSI_CSICR3 >> 16;
     Serial.print("FPS: "); Serial.println(fc - last_fc);
     last_fc = fc;
     fc_timer -= 1000;
   };
-  if (true & (fd_timer > 30)) {
+  if (false & (fd_timer > 30)) {
     //Serial.println("==");
     print_frame(0);
     //fbs(1, 128);
